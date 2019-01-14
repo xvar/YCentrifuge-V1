@@ -1,1 +1,1 @@
-# First version of Centrifuge for Android
+# Centrifuge android library first try
