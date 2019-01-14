@@ -14,8 +14,8 @@ import javax.inject.Inject
 
 abstract class BaseActivity : AppCompatActivity(), HasSupportFragmentInjector {
 
-    private val compositeDisposableMap = CompositeDisposable()
-    protected fun addDisposable(d: Disposable) = compositeDisposableMap.add(d)
+    private val compositeDisposable = CompositeDisposable()
+    protected fun addDisposable(d: Disposable) = compositeDisposable.add(d)
 
     @Inject
     lateinit var sFI: DispatchingAndroidInjector<Fragment>
@@ -27,6 +27,6 @@ abstract class BaseActivity : AppCompatActivity(), HasSupportFragmentInjector {
 
     override fun onDestroy() {
         super.onDestroy()
-        compositeDisposableMap.clear()
+        compositeDisposable.clear()
     }
 }

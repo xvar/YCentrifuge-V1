@@ -1,4 +1,4 @@
-package allgoritm.com.centrifuge;
+package allgoritm.com.centrifuge.v1;
 
 import org.junit.Test;
 
