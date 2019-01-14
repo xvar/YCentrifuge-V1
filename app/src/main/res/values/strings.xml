@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">Centrifuge</string>
-    <string name="query_credentials">query credentials</string>
+    <string name="query_credentials">start loading</string>
 </resources>

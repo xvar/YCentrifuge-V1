@@ -1,5 +1,5 @@
 package allgoritm.com.centrifuge.v1
 
-class Centrifuge {
+class CentrifugeSocket {
     fun init() = "test str"
 }
