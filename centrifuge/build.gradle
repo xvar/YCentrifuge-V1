@@ -1,0 +1,40 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 17
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    testImplementation 'junit:junit:4.12'
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
+
+    implementation 'com.squareup.okhttp3:okhttp:3.10.0'
+    implementation 'com.github.tinder.scarlet:scarlet:0.2.1-alpha3'
+    implementation 'com.github.tinder.scarlet:scarlet-stream-adapter-rxjava2:0.2.1-alpha3'
+    implementation 'com.github.tinder.scarlet:scarlet-websocket-okhttp:0.2.1-alpha3'
+    implementation 'com.github.tinder.scarlet:scarlet-message-adapter-gson:0.2.1-alpha3'
+}
+repositories {
+    mavenCentral()
+    maven { url "https://jitpack.io" }
+}
