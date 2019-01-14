@@ -1,1 +1,1 @@
-include ':app', ':centrifuge'
+include ':app'

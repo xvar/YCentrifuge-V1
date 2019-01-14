@@ -3,6 +3,7 @@ package allgoritm.com.centrifuge.ui.main
 import allgoritm.com.centrifuge.BaseViewModel
 import allgoritm.com.centrifuge.data.CentrifugeCredentialsService
 import allgoritm.com.centrifuge.data.UiEvent
+import allgoritm.com.centrifuge.v1.CentrifugeSocket
 import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.functions.Consumer
@@ -15,6 +16,9 @@ class MainViewModel @Inject constructor(
 ) : BaseViewModel(), Consumer<UiEvent> {
 
     private val strProcessor = BehaviorProcessor.create<String>()
+    init {
+        strProcessor.onNext(CentrifugeSocket().init())
+    }
 
     fun observe() : Flowable<String> {
         return strProcessor
