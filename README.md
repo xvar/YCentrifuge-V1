@@ -1,2 +1,1 @@
-# YoulaAndroidCentrifugeV1
-First version of CentrifugeLibrary
+# First version of Centrifuge for Android
