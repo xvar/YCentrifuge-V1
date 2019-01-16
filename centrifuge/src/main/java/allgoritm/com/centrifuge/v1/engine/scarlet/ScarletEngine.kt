@@ -15,6 +15,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONObject
 import org.reactivestreams.Processor
 import java.lang.Exception
@@ -39,6 +40,7 @@ class ScarletEngine(
         .readTimeout(0, TimeUnit.NANOSECONDS)
         .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
         .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
+        .addInterceptor(HttpLoggingInterceptor())
         .build()
 
     override fun init(eventPublisher: Processor<Event, Event>) {
@@ -109,6 +111,18 @@ class ScarletEngine(
                     is WebSocket.Event.OnConnectionOpened<*> -> {
                         publisher.onNext(Event.SocketOpened(event.webSocket as okhttp3.WebSocket))
                         cs.sendConnect(data)
+                        compositeDisposable.add(
+                            Flowable.interval(5, TimeUnit.SECONDS)
+                                .doOnNext { Log.d("timer", "ping") }
+                                .subscribe {
+                                    Log.d("interval", "int = ${it % 5}")
+                                    when (it % 5) {
+                                        0L -> cs.sendPing(Command.Ping)
+                                        //1L -> cs.sendPublish(Command.Publish("str"))
+                                        2L -> cs.sendHistory(Command.History(commonChannelParams))
+                                    }
+                                }
+                        )
                     }
                     is WebSocket.Event.OnConnectionClosed -> publisher.onNext(Event.SocketClosed())
                     is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
@@ -123,7 +137,9 @@ class ScarletEngine(
         compositeDisposable.clear()
     }
 
+    private lateinit var commonChannelParams : ChannelParams
     override fun subscribe(data: Command.Subscribe) {
+        commonChannelParams = data.params
         if (isConnected) {
             cs.sendSubscribe(data)
         } else {
