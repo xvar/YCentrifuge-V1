@@ -17,6 +17,6 @@ sealed class Event {
     data class Subscribed(val channel: String, val receiver: Messenger) : Event()
     data class Unsubscribed(val channel: String) : Event()
 
-    //data class MessageReceived(val message: Message) : Event()
-    data class Error(val method: String, val throwable: Throwable) //? разделить на отдельные классы ошибок
+    data class MessageReceived(val message: Message) : Event()
+    data class Error(val method: String, val throwable: Throwable) : Event() //? разделить на отдельные классы ошибок
 }

@@ -7,5 +7,5 @@ sealed class Message {
     class Bytes(val value: ByteArray) : Message() {
         operator fun component1(): ByteArray = value
     }
-    class JSON(val value: JSONObject) : Message()
+    data class JSON(val value: JSONObject) : Message()
 }

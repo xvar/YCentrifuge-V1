@@ -2,6 +2,7 @@ package allgoritm.com.centrifuge.di
 
 import allgoritm.com.centrifuge.BuildConfig
 import allgoritm.com.centrifuge.data.RequestManager
+import allgoritm.com.centrifuge.v1.YCentrifugeFactory
 import android.annotation.SuppressLint
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -41,6 +42,10 @@ class NetworkModule {
     @Singleton
     fun provideRequestManager(client: OkHttpClient, gson: Gson) = RequestManager(client, gson)
 
+    @Provides
+    @Singleton
+    fun provideCentrifugeFactory() = YCentrifugeFactory
+
     private fun addDebugSettings(builder: OkHttpClient.Builder) {
         if (BuildConfig.DEBUG) {
             try {
@@ -76,4 +81,6 @@ class NetworkModule {
 
         }
     }
+
+
 }
