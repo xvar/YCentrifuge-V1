@@ -11,21 +11,20 @@ import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
 import io.reactivex.Flowable
-import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.Scheduler
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
-import org.json.JSONObject
 import org.reactivestreams.Processor
-import java.lang.Exception
-import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ScarletEngine(
     private val builder: OkHttpClient.Builder,
     private val gson: Gson,
-    private val cfg: ConnectionConfig
+    private val cfg: ConnectionConfig,
+    private val workScheduler : Scheduler,
+    private val resultScheduler: Scheduler
 ) : YCentrifugeEngine {
 
     private var scarletInstance : Scarlet? = null
@@ -33,8 +32,8 @@ class ScarletEngine(
     private lateinit var cs : CentrifugeService
     private val compositeDisposable = CompositeDisposable()
 
-    private val subscribeQueue = LinkedList<Command.Subscribe>()
-    private var isConnected = false
+    private val subscribeQueue = ConcurrentLinkedQueue<Command.Subscribe>()
+    private var isConnected = AtomicBoolean(false)
 
     private lateinit var client : OkHttpClient
 
@@ -47,7 +46,7 @@ class ScarletEngine(
             .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
             .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-            .addInterceptor(LoggingInterceptor(token))
+            .addInterceptor(LoggingInterceptor())
             .build()
     }
 
@@ -64,16 +63,14 @@ class ScarletEngine(
 
         compositeDisposable.add(
         cs.observeResponses()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe {
+            .subscribeOn(workScheduler)
+            .observeOn(resultScheduler)
+            .subscribe ({
                 Log.d(LOG_TAG, "response = $it")
                 when (it.method) {
                     METHOD_CONNECT -> {
-                        isConnected = true
-                        subscribeQueue.forEach {
-                            cs.sendSubscribe(it)
-                        }
+                        isConnected.set(true)
+                        subscribe()
 
                         if (it.error != null) {
                             publisher.onNext(Event.Error(it.method, Exception(it.error)))
@@ -104,13 +101,15 @@ class ScarletEngine(
                         }
                     }
                 }
-            })
+            },
+                {err -> Log.e(LOG_TAG, "parsed error", err)}
+            ))
 
 
         compositeDisposable.add(cs.observeWebSocketEvent()
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { event ->
+            .subscribeOn(workScheduler)
+            .observeOn(resultScheduler)
+            .subscribe ({ event ->
                 Log.d(LOG_TAG, "websocket event = $event")
                 when (event) {
                     is WebSocket.Event.OnConnectionOpened<*> -> {
@@ -128,23 +127,30 @@ class ScarletEngine(
                     is WebSocket.Event.OnConnectionClosed -> publisher.onNext(Event.SocketClosed())
                     is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
                 }
-            })
+            },
+                {err -> Log.e(LOG_TAG, "event error", err)}
+            ))
     }
 
     override fun disconnect(data: Command.Disconnect) {
         //sendDisconnect
-        isConnected = false
+        isConnected.set(false)
         subscribeQueue.clear()
         compositeDisposable.clear()
     }
 
-    private lateinit var commonChannelParams : ChannelParams
     override fun subscribe(data: Command.Subscribe) {
-        commonChannelParams = data.params
-        if (isConnected) {
-            cs.sendSubscribe(data)
-        } else {
+        if (!subscribeQueue.contains(data)) {
             subscribeQueue.offer(data)
+        }
+        if (isConnected.get()) {
+            subscribe()
+        }
+    }
+
+    private fun subscribe() {
+        subscribeQueue.forEach {
+            cs.sendSubscribe(it)
         }
     }
 
