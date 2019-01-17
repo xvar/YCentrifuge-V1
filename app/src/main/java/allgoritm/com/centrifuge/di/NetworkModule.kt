@@ -28,11 +28,9 @@ class NetworkModule {
 
     @Provides
     @Singleton
-    fun provideWSOkHttpClient() : OkHttpClient {
+    fun provideOkHttpClient() : OkHttpClient {
         val builder = OkHttpClient.Builder()
-            .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(10, TimeUnit.SECONDS)
-            .pingInterval(30, TimeUnit.SECONDS)
 
         addDebugSettings(builder)
         return builder.build()

@@ -23,9 +23,9 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 
 class ScarletEngine(
-    builder: OkHttpClient.Builder,
+    private val builder: OkHttpClient.Builder,
     private val gson: Gson,
-    cfg: ConnectionConfig
+    private val cfg: ConnectionConfig
 ) : YCentrifugeEngine {
 
     private var scarletInstance : Scarlet? = null
@@ -36,19 +36,24 @@ class ScarletEngine(
     private val subscribeQueue = LinkedList<Command.Subscribe>()
     private var isConnected = false
 
-    private val client : OkHttpClient = builder
-        .readTimeout(0, TimeUnit.NANOSECONDS)
-        .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-        .addInterceptor(HttpLoggingInterceptor())
-        .build()
+    private lateinit var client : OkHttpClient
 
     override fun init(eventPublisher: Processor<Event, Event>) {
         publisher = eventPublisher
     }
 
+    private fun initClient(token: String): OkHttpClient {
+        return builder
+            .readTimeout(0, TimeUnit.NANOSECONDS)
+            .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
+            .addInterceptor(LoggingInterceptor(token))
+            .build()
+    }
+
     override fun connect(url: String, data: Command.Connect) {
         if (scarletInstance == null) {
+            client = initClient(data.params.token)
             scarletInstance = Scarlet.Builder()
                 .webSocketFactory(client.newWebSocketFactory(url))
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
@@ -109,18 +114,14 @@ class ScarletEngine(
                 Log.d(LOG_TAG, "websocket event = $event")
                 when (event) {
                     is WebSocket.Event.OnConnectionOpened<*> -> {
-                        publisher.onNext(Event.SocketOpened(event.webSocket as okhttp3.WebSocket))
+                        val webSocket = event.webSocket as okhttp3.WebSocket
+                        publisher.onNext(Event.SocketOpened(webSocket))
                         cs.sendConnect(data)
                         compositeDisposable.add(
-                            Flowable.interval(5, TimeUnit.SECONDS)
+                            Flowable.interval(25, TimeUnit.SECONDS)
                                 .doOnNext { Log.d("timer", "ping") }
                                 .subscribe {
-                                    Log.d("interval", "int = ${it % 5}")
-                                    when (it % 5) {
-                                        0L -> cs.sendPing(Command.Ping)
-                                        //1L -> cs.sendPublish(Command.Publish("str"))
-                                        2L -> cs.sendHistory(Command.History(commonChannelParams))
-                                    }
+                                    cs.sendPing(Command.Ping)
                                 }
                         )
                     }
