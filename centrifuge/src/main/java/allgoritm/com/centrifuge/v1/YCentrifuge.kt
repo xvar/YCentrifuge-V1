@@ -3,25 +3,12 @@ package allgoritm.com.centrifuge.v1
 import allgoritm.com.centrifuge.v1.contract.YCentrifugeEngine
 import allgoritm.com.centrifuge.v1.data.*
 import allgoritm.com.centrifuge.v1.engine.old_centrifuge.OldCentrifugeEngine
-import allgoritm.com.centrifuge.v1.engine.scarlet.ScarletEngine
-import com.google.gson.GsonBuilder
 import io.reactivex.Flowable
-import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.processors.PublishProcessor
-import io.reactivex.schedulers.Schedulers
-import okhttp3.OkHttpClient
 
 object YCentrifugeFactory {
     fun create(connectionConfig: ConnectionConfig) = YCentrifuge(
-        ScarletEngine(
-            OkHttpClient.Builder(),
-            GsonBuilder()
-                .registerTypeAdapter(Body::class.java, BodyDeserializer())
-                .create(),
-            connectionConfig,
-            Schedulers.io(),
-            AndroidSchedulers.mainThread()
-        )
+        OldCentrifugeEngine(connectionConfig)
     )
 }
 
