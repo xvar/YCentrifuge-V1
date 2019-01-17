@@ -3,14 +3,13 @@ package allgoritm.com.centrifuge.v1.engine.scarlet
 import allgoritm.com.centrifuge.v1.contract.Messenger
 import allgoritm.com.centrifuge.v1.data.*
 import io.reactivex.Flowable
+import io.reactivex.processors.BehaviorProcessor
 import org.json.JSONObject
-import org.reactivestreams.Processor
-import java.lang.IllegalArgumentException
 
 class ScarletMessenger(
     override val channel: String,
     private val centrifugeService: CentrifugeService,
-    private val publisher: Processor<Event, Event>
+    private val publisher: BehaviorProcessor<Event>
 ) : Messenger {
 
     private fun isSupportedEvent(event: Event) : Boolean {
@@ -21,12 +20,18 @@ class ScarletMessenger(
         Flowable.fromPublisher(publisher)
                 .filter{ e -> isSupportedEvent(e) && (e as DataEvent).data[CHANNEL] == channel }
                 .map { e: Event ->
-                    val dataEvent = e as DataEvent
-                    val data = dataEvent.data[DATA] as JSONObject
-                    if (e is Event.MessageReceived) { return@map e.copy(data = data) as Event }
-                    if (e is Event.Leave) { return@map e.copy(data = data) as Event }
-                    if (e is Event.Join) { return@map e.copy(data = data) as Event }
-                    throw IllegalArgumentException("event is not supported")
+                        val dataEvent = e as DataEvent
+                        val data = dataEvent.data[DATA] as JSONObject
+                        if (e is Event.MessageReceived) {
+                            return@map e.copy(data = data) as Event
+                        }
+                        if (e is Event.Leave) {
+                            return@map e.copy(data = data) as Event
+                        }
+                        if (e is Event.Join) {
+                            return@map e.copy(data = data) as Event
+                        }
+                        throw IllegalArgumentException("event is not supported")
                 }
     }
     override fun observe(): Flowable<Event> = messengerEvents

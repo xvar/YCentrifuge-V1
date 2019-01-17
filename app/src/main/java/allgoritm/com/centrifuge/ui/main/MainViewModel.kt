@@ -5,8 +5,10 @@ import allgoritm.com.centrifuge.data.CentrifugeCredentials
 import allgoritm.com.centrifuge.data.CentrifugeCredentialsService
 import allgoritm.com.centrifuge.data.UiEvent
 import allgoritm.com.centrifuge.v1.YCentrifugeFactory
+import allgoritm.com.centrifuge.v1.contract.Messenger
 import allgoritm.com.centrifuge.v1.data.ConnectionConfig
 import allgoritm.com.centrifuge.v1.data.ConnectionParams
+import allgoritm.com.centrifuge.v1.data.Event
 import allgoritm.com.centrifuge.v1.data.SubscribeParams
 import android.util.Log
 import io.reactivex.Flowable
@@ -48,15 +50,35 @@ class MainViewModel @Inject constructor(
 
     private fun startCentrifuge(c: CentrifugeCredentials) {
         addDisposable(
-            centrifuge.events().subscribe {
-                Log.e("client", "$it")
-                strProcessor.onNext(it.toString())
+            centrifuge.events().subscribe { event ->
+                Log.e("client", "$event")
+                strProcessor.onNext(event.toString())
+                if (event is Event.Subscribed) {
+                    Log.e("client", "event subscribed")
+                    addMessenger(event)
+                }
             }
         )
         strProcessor.onNext(c.toString())
         centrifuge.connect(c.url, ConnectionParams(c.userId, c.timestamp.toString(), "", c.token))
         centrifuge.subscribe(SubscribeParams(c.commonChannel))
 
+    }
+
+    private fun addMessenger(event: Event.Subscribed) {
+        val messenger = event.receiver
+        addDisposable(
+            messenger.observe()
+                .subscribe(
+                    { data ->
+                        Log.e("client", "messenger = $data")
+                        strProcessor.onNext(data.toString())
+                    },
+                    {
+                        Log.e("client", "messenger, throwable = $it")
+                    }
+                )
+        )
     }
 
 }

@@ -13,8 +13,8 @@ import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
 import io.reactivex.Flowable
 import io.reactivex.Scheduler
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.processors.BehaviorProcessor
 import okhttp3.OkHttpClient
-import org.reactivestreams.Processor
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,7 +28,7 @@ class ScarletEngine(
 ) : YCentrifugeEngine {
 
     private var scarletInstance : Scarlet? = null
-    private lateinit var publisher : Processor<Event, Event>
+    private lateinit var publisher : BehaviorProcessor<Event>
     private lateinit var cs : CentrifugeService
     private val compositeDisposable = CompositeDisposable()
 
@@ -38,7 +38,7 @@ class ScarletEngine(
 
     private lateinit var client : OkHttpClient
 
-    override fun init(eventPublisher: Processor<Event, Event>) {
+    override fun init(eventPublisher: BehaviorProcessor<Event>) {
         publisher = eventPublisher
     }
 
@@ -113,9 +113,9 @@ class ScarletEngine(
             publisher.onNext(Event.Error(it.method, Exception(it.error)))
             //todo retry disconnect and unsubscribe
         } else {
-            val jsonBody = it.body!!.value
             when (it.method) {
                 METHOD_CONNECT -> {
+                    val jsonBody = it.body!!.value
                     isConnected.set(true)
                     subscribe()
                     publisher.onNext(Event.Connected(jsonBody))
@@ -126,6 +126,7 @@ class ScarletEngine(
                     compositeDisposable.clear()
                 }
                 METHOD_SUBSCRIBE -> {
+                    val jsonBody = it.body!!.value
                     val channel = jsonBody[CHANNEL] as String
                     val messenger = messengerMap.getOrPut(channel) {
                         ScarletMessenger(channel, cs, publisher)
@@ -134,14 +135,26 @@ class ScarletEngine(
                 }
                 METHOD_UNSUBSCRIBE -> {
                     synchronized(this) {
+                        val jsonBody = it.body!!.value
                         val channel = jsonBody[CHANNEL] as String
                         subscribeMap.remove(channel)
                         messengerMap.remove(channel)
                     }
                 }
-                METHOD_MESSAGE -> publisher.onNext(Event.MessageReceived(jsonBody))
-                METHOD_LEAVE -> publisher.onNext(Event.Leave(jsonBody))
-                METHOD_JOIN -> publisher.onNext(Event.Join(jsonBody))
+                METHOD_MESSAGE -> {
+                    val jsonBody = it.body!!.value
+                    val messageReceived = Event.MessageReceived(jsonBody)
+                    publisher.onNext(messageReceived)
+                    Log.d(LOG_TAG, "message sent, $messageReceived")
+                }
+                METHOD_LEAVE -> {
+                    val jsonBody = it.body!!.value
+                    publisher.onNext(Event.Leave(jsonBody))
+                }
+                METHOD_JOIN -> {
+                    val jsonBody = it.body!!.value
+                    publisher.onNext(Event.Join(jsonBody))
+                }
             }
         }
     }

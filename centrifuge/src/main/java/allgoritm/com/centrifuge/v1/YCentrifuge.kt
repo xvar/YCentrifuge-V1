@@ -6,6 +6,7 @@ import allgoritm.com.centrifuge.v1.engine.scarlet.ScarletEngine
 import com.google.gson.GsonBuilder
 import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.processors.BehaviorProcessor
 import io.reactivex.processors.PublishProcessor
 import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
@@ -28,7 +29,7 @@ class YCentrifuge internal constructor(
     private val engine : YCentrifugeEngine
 ) {
 
-    private val eventPublisher = PublishProcessor.create<Event>()
+    private val eventPublisher = BehaviorProcessor.create<Event>()
     init { engine.init(eventPublisher) }
 
     fun events() : Flowable<Event> = eventPublisher

@@ -16,7 +16,7 @@ const val METHOD_PRESENCE = "presence"
 const val METHOD_HISTORY = "history"
 const val METHOD_JOIN = "join"
 const val METHOD_LEAVE = "leave"
-const val METHOD_MESSAGE = "data"
+const val METHOD_MESSAGE = "message"
 const val METHOD_REFRESH = "refresh"
 const val METHOD_PING = "ping"
 
