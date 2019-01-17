@@ -7,6 +7,7 @@ import allgoritm.com.centrifuge.data.UiEvent
 import allgoritm.com.centrifuge.v1.YCentrifugeFactory
 import allgoritm.com.centrifuge.v1.data.ConnectionConfig
 import allgoritm.com.centrifuge.v1.data.ConnectionParams
+import allgoritm.com.centrifuge.v1.data.SubscribeParams
 import android.util.Log
 import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -54,7 +55,7 @@ class MainViewModel @Inject constructor(
         )
         strProcessor.onNext(c.toString())
         centrifuge.connect(c.url, ConnectionParams(c.userId, c.timestamp.toString(), "", c.token))
-        centrifuge.subscribe(c.commonChannel)
+        centrifuge.subscribe(SubscribeParams(c.commonChannel))
 
     }
 

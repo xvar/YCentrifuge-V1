@@ -15,7 +15,7 @@ import io.reactivex.Scheduler
 import io.reactivex.disposables.CompositeDisposable
 import okhttp3.OkHttpClient
 import org.reactivestreams.Processor
-import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -32,8 +32,9 @@ class ScarletEngine(
     private lateinit var cs : CentrifugeService
     private val compositeDisposable = CompositeDisposable()
 
-    private val subscribeQueue = ConcurrentLinkedQueue<Command.Subscribe>()
+    private val subscribeMap = ConcurrentHashMap<String, Command.Subscribe>()
     private var isConnected = AtomicBoolean(false)
+    private val messengerMap = ConcurrentHashMap<String, Messenger>()
 
     private lateinit var client : OkHttpClient
 
@@ -41,7 +42,7 @@ class ScarletEngine(
         publisher = eventPublisher
     }
 
-    private fun initClient(token: String): OkHttpClient {
+    private fun initClient(): OkHttpClient {
         return builder
             .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
@@ -52,7 +53,7 @@ class ScarletEngine(
 
     override fun connect(url: String, data: Command.Connect) {
         if (scarletInstance == null) {
-            client = initClient(data.params.token)
+            client = initClient()
             scarletInstance = Scarlet.Builder()
                 .webSocketFactory(client.newWebSocketFactory(url))
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
@@ -61,46 +62,13 @@ class ScarletEngine(
             cs = scarletInstance!!.create<CentrifugeService>()
         }
 
+        val responses = cs.observeResponses()
         compositeDisposable.add(
-        cs.observeResponses()
+        responses
             .subscribeOn(workScheduler)
             .observeOn(resultScheduler)
             .subscribe ({
-                Log.d(LOG_TAG, "response = $it")
-                when (it.method) {
-                    METHOD_CONNECT -> {
-                        isConnected.set(true)
-                        subscribe()
-
-                        if (it.error != null) {
-                            publisher.onNext(Event.Error(it.method, Exception(it.error)))
-                        } else {
-                            publisher.onNext(Event.Connected(it.body!!.value))
-                        }
-                    }
-                    METHOD_SUBSCRIBE -> {
-                        if (it.error != null) {
-                            publisher.onNext(Event.Error(it.method, Exception(it.error)))
-                        } else {
-                            publisher.onNext(Event.Subscribed("parse_channel", object : Messenger {
-                                override val channel: String
-                                    get() = "parse_channel"
-
-                                override fun observe(): Flowable<Event> {
-                                    return Flowable.empty<Event>()
-                                }
-
-                            }))
-                        }
-                    }
-                    METHOD_MESSAGE -> {
-                        if (it.error != null) {
-                            publisher.onNext(Event.Error(it.method, Exception(it.error)))
-                        } else {
-                            publisher.onNext(Event.MessageReceived(Message.JSON(it.body!!.value)))
-                        }
-                    }
-                }
+                handleResponse(it)
             },
                 {err -> Log.e(LOG_TAG, "parsed error", err)}
             ))
@@ -110,38 +78,79 @@ class ScarletEngine(
             .subscribeOn(workScheduler)
             .observeOn(resultScheduler)
             .subscribe ({ event ->
-                Log.d(LOG_TAG, "websocket event = $event")
-                when (event) {
-                    is WebSocket.Event.OnConnectionOpened<*> -> {
-                        val webSocket = event.webSocket as okhttp3.WebSocket
-                        publisher.onNext(Event.SocketOpened(webSocket))
-                        cs.sendConnect(data)
-                        compositeDisposable.add(
-                            Flowable.interval(25, TimeUnit.SECONDS)
-                                .doOnNext { Log.d("timer", "ping") }
-                                .subscribe {
-                                    cs.sendPing(Command.Ping)
-                                }
-                        )
-                    }
-                    is WebSocket.Event.OnConnectionClosed -> publisher.onNext(Event.SocketClosed())
-                    is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
-                }
+                handleEvent(event, data)
             },
                 {err -> Log.e(LOG_TAG, "event error", err)}
             ))
     }
 
-    override fun disconnect(data: Command.Disconnect) {
-        //sendDisconnect
-        isConnected.set(false)
-        subscribeQueue.clear()
-        compositeDisposable.clear()
+    private fun handleEvent(
+        event: WebSocket.Event?,
+        data: Command.Connect
+    ) {
+        Log.d(LOG_TAG, "websocket event = $event")
+        when (event) {
+            is WebSocket.Event.OnConnectionOpened<*> -> {
+                val webSocket = event.webSocket as okhttp3.WebSocket
+                publisher.onNext(Event.SocketOpened(webSocket))
+                cs.sendConnect(data)
+                compositeDisposable.add(
+                    Flowable.interval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
+                        .doOnNext { Log.d("timer", "ping") }
+                        .subscribe {
+                            cs.sendPing(Command.Ping)
+                        }
+                )
+            }
+            is WebSocket.Event.OnConnectionClosed -> publisher.onNext(Event.SocketClosed())
+            is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
+        }
     }
 
+    private fun handleResponse(it: Response) {
+        Log.d(LOG_TAG, "response = $it")
+        if (it.error != null) {
+            publisher.onNext(Event.Error(it.method, Exception(it.error)))
+            //todo retry disconnect and unsubscribe
+        } else {
+            val jsonBody = it.body!!.value
+            when (it.method) {
+                METHOD_CONNECT -> {
+                    isConnected.set(true)
+                    subscribe()
+                    publisher.onNext(Event.Connected(jsonBody))
+                }
+                METHOD_DISCONNECT -> {
+                    isConnected.set(false)
+                    subscribeMap.clear()
+                    compositeDisposable.clear()
+                }
+                METHOD_SUBSCRIBE -> {
+                    val channel = jsonBody[CHANNEL] as String
+                    val messenger = messengerMap.getOrPut(channel) {
+                        ScarletMessenger(channel, cs, publisher)
+                    }
+                    publisher.onNext(Event.Subscribed(channel, messenger))
+                }
+                METHOD_UNSUBSCRIBE -> {
+                    synchronized(this) {
+                        val channel = jsonBody[CHANNEL] as String
+                        subscribeMap.remove(channel)
+                        messengerMap.remove(channel)
+                    }
+                }
+                METHOD_MESSAGE -> publisher.onNext(Event.MessageReceived(jsonBody))
+                METHOD_LEAVE -> publisher.onNext(Event.Leave(jsonBody))
+                METHOD_JOIN -> publisher.onNext(Event.Join(jsonBody))
+            }
+        }
+    }
+
+    override fun disconnect(data: Command.Disconnect) = cs.sendDisconnect(data)
+
     override fun subscribe(data: Command.Subscribe) {
-        if (!subscribeQueue.contains(data)) {
-            subscribeQueue.offer(data)
+        if (!subscribeMap.contains(data)) {
+            subscribeMap[data.params.channel] = data
         }
         if (isConnected.get()) {
             subscribe()
@@ -149,12 +158,10 @@ class ScarletEngine(
     }
 
     private fun subscribe() {
-        subscribeQueue.forEach {
+        subscribeMap.values.forEach {
             cs.sendSubscribe(it)
         }
     }
 
-    override fun unsubscribe(data: Command.Unsubscribe) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
+    override fun unsubscribe(data: Command.Unsubscribe) = cs.sendUnsubscribe(data)
 }

@@ -30,6 +30,7 @@ class NetworkModule {
     @Singleton
     fun provideOkHttpClient() : OkHttpClient {
         val builder = OkHttpClient.Builder()
+            .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(10, TimeUnit.SECONDS)
 
         addDebugSettings(builder)

@@ -34,6 +34,6 @@ class YCentrifuge internal constructor(
     fun events() : Flowable<Event> = eventPublisher
     fun connect(url: String, params: ConnectionParams) = engine.connect(url, Command.Connect(params))
     fun disconnect() = engine.disconnect(Command.Disconnect())
-    fun subscribe(channel: String) = engine.subscribe(Command.Subscribe(ChannelParams(channel)))
+    fun subscribe(params: SubscribeParams) = engine.subscribe(Command.Subscribe(params))
     fun unsubscribe(channel: String) = engine.unsubscribe(Command.Unsubscribe(ChannelParams(channel)))
 }

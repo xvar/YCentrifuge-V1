@@ -13,13 +13,19 @@ interface CentrifugeService {
     @Send
     fun sendConnect(connect: Command.Connect)
     @Send
+    fun sendDisconnect(connect: Command.Disconnect)
+    @Send
     fun sendSubscribe(connect: Command.Subscribe)
+    @Send
+    fun sendUnsubscribe(connect: Command.Unsubscribe)
     @Send
     fun sendPing(command: Command.Ping)
     @Send
     fun sendPublish(command: Command.Publish)
     @Send
     fun sendHistory(command: Command.History)
+    @Send
+    fun sendPresence(command: Command.Presence)
     @Receive
     fun observeResponses(): Flowable<Response>
 }
