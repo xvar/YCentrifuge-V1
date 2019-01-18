@@ -33,7 +33,8 @@ class MainViewModel @Inject constructor(
     override fun accept(e: UiEvent) {
         when (e) {
             is UiEvent.CredentialsAndConnect -> {
-                addDisposable(service.getCentrifugeCredentials()
+                logs.clear()
+                addDisposable("main_vm_cred", service.getCentrifugeCredentials()
                     .subscribeOn(Schedulers.io())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe {
@@ -50,12 +51,13 @@ class MainViewModel @Inject constructor(
             is UiEvent.Publish -> messenger.publish(JSONObject().apply { put("key", e.data) })
             is UiEvent.History -> messenger.history()
             is UiEvent.Presence -> messenger.presence()
+            is UiEvent.Disconnect -> centrifuge.disconnect()
         }
     }
 
     private fun startCentrifuge(c: CentrifugeCredentials) {
         centrifugeCredentials = c
-        addDisposable(
+        addDisposable("main_vm_ui_events",
             centrifuge.events().subscribe { event ->
                 Log.e("client", "$event")
                 publish(event.toString())
@@ -77,7 +79,7 @@ class MainViewModel @Inject constructor(
     private lateinit var messenger: Messenger
     private fun addMessenger(event: Event.Subscribed) {
         messenger = event.receiver
-        addDisposable(
+        addDisposable("main_vm_messenger",
             messenger.observe()
                 .subscribe(
                     { data ->

@@ -11,8 +11,8 @@ import io.reactivex.disposables.Disposable
 
 abstract class BaseFragment : Fragment(), Injectable {
 
-    private val compositeDisposable = CompositeDisposable()
-    protected fun addDisposable(d: Disposable) = compositeDisposable.add(d)
+    private val compositeDisposable = CompositeDisposablesMap()
+    protected fun addDisposable(key: String, d: Disposable) = compositeDisposable.put(key, d)
 
     inline fun <reified T : ViewModel> ViewModelFactory<T>.get(): T =
         ViewModelProviders.of(this@BaseFragment, this)[T::class.java]
@@ -22,6 +22,6 @@ abstract class BaseFragment : Fragment(), Injectable {
 
     override fun onDestroy() {
         super.onDestroy()
-        compositeDisposable.clear()
+        compositeDisposable.clearAll()
     }
 }

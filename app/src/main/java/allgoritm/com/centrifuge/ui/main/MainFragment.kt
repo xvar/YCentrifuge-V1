@@ -57,7 +57,7 @@ class MainFragment : BaseFragment() {
         super.onActivityCreated(savedInstanceState)
         viewModel = vmFactory.getForActivity(activity!!)
 
-        addDisposable(
+        addDisposable("ui",
             viewModel.observe().subscribe {
                 Log.d("client_fr", "$it")
                 adapter.logs.clear()
