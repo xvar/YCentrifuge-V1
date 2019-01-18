@@ -36,10 +36,10 @@ class ScarletMessenger(
     }
     override fun observe(): Flowable<Event> = messengerEvents
 
-    override fun publish(command: Command.Publish) = centrifugeService.sendPublish(command)
+    override fun publish(data: JSONObject) = centrifugeService.sendPublish(Command.Publish(PublishParams(channel, data)))
 
-    override fun presence(command: Command.Presence) = centrifugeService.sendPresence(command)
+    override fun presence() = centrifugeService.sendPresence(Command.Presence)
 
-    override fun history(command: Command.History) = centrifugeService.sendHistory(command)
+    override fun history() = centrifugeService.sendHistory(Command.History(ChannelParams(channel)))
 
 }

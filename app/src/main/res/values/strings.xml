@@ -1,4 +1,12 @@
 <resources>
     <string name="app_name">Centrifuge</string>
-    <string name="query_credentials">start loading</string>
+    <string name="query_credentials">Cred and connect</string>
+    <string name="history">history</string>
+    <string name="subscribe">subscribe</string>
+    <string name="unsubscribe">unsubscribe</string>
+    <string name="disconnect">disconnect</string>
+    <string name="publish">publish</string>
+    <string name="empty">empty</string>
+    <string name="presence">presence</string>
+
 </resources>

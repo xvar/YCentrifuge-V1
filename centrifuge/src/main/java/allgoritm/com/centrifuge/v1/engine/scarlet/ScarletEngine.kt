@@ -68,7 +68,7 @@ class ScarletEngine(
             .subscribeOn(workScheduler)
             .observeOn(resultScheduler)
             .subscribe ({
-                handleResponse(it)
+                handle(it)
             },
                 {err -> Log.e(LOG_TAG, "parsed error", err)}
             ))
@@ -107,55 +107,75 @@ class ScarletEngine(
         }
     }
 
-    private fun handleResponse(it: Response) {
+    private fun handle(it: Response) {
         Log.d(LOG_TAG, "response = $it")
         if (it.error != null) {
-            publisher.onNext(Event.Error(it.method, Exception(it.error)))
-            //todo retry disconnect and unsubscribe
+            handleError(it)
         } else {
-            when (it.method) {
-                METHOD_CONNECT -> {
-                    val jsonBody = it.body!!.value
-                    isConnected.set(true)
-                    subscribe()
-                    publisher.onNext(Event.Connected(jsonBody))
+            handleResponse(it)
+        }
+    }
+
+    private fun handleResponse(it: Response) {
+        when (it.method) {
+            METHOD_CONNECT -> {
+                val jsonBody = it.body!!.value
+                isConnected.set(true)
+                subscribe()
+                publisher.onNext(Event.Connected(jsonBody))
+            }
+            METHOD_DISCONNECT -> {
+                isConnected.set(false)
+                subscribeMap.clear()
+                compositeDisposable.clear()
+            }
+            METHOD_SUBSCRIBE -> {
+                val jsonBody = it.body!!.value
+                val channel = jsonBody[CHANNEL] as String
+                val messenger = messengerMap.getOrPut(channel) {
+                    ScarletMessenger(channel, cs, publisher)
                 }
-                METHOD_DISCONNECT -> {
-                    isConnected.set(false)
-                    subscribeMap.clear()
-                    compositeDisposable.clear()
-                }
-                METHOD_SUBSCRIBE -> {
+                publisher.onNext(Event.Subscribed(channel, messenger))
+            }
+            METHOD_UNSUBSCRIBE -> {
+                synchronized(this) {
                     val jsonBody = it.body!!.value
                     val channel = jsonBody[CHANNEL] as String
-                    val messenger = messengerMap.getOrPut(channel) {
-                        ScarletMessenger(channel, cs, publisher)
-                    }
-                    publisher.onNext(Event.Subscribed(channel, messenger))
-                }
-                METHOD_UNSUBSCRIBE -> {
-                    synchronized(this) {
-                        val jsonBody = it.body!!.value
-                        val channel = jsonBody[CHANNEL] as String
-                        subscribeMap.remove(channel)
-                        messengerMap.remove(channel)
-                    }
-                }
-                METHOD_MESSAGE -> {
-                    val jsonBody = it.body!!.value
-                    val messageReceived = Event.MessageReceived(jsonBody)
-                    publisher.onNext(messageReceived)
-                    Log.d(LOG_TAG, "message sent, $messageReceived")
-                }
-                METHOD_LEAVE -> {
-                    val jsonBody = it.body!!.value
-                    publisher.onNext(Event.Leave(jsonBody))
-                }
-                METHOD_JOIN -> {
-                    val jsonBody = it.body!!.value
-                    publisher.onNext(Event.Join(jsonBody))
+                    subscribeMap.remove(channel)
+                    messengerMap.remove(channel)
                 }
             }
+            METHOD_MESSAGE -> {
+                val jsonBody = it.body!!.value
+                val messageReceived = Event.MessageReceived(jsonBody)
+                publisher.onNext(messageReceived)
+                Log.d(LOG_TAG, "message sent, $messageReceived")
+            }
+            METHOD_LEAVE -> {
+                val jsonBody = it.body!!.value
+                publisher.onNext(Event.Leave(jsonBody))
+            }
+            METHOD_JOIN -> {
+                val jsonBody = it.body!!.value
+                publisher.onNext(Event.Join(jsonBody))
+            }
+        }
+    }
+
+    private fun handleError(it: Response) {
+        publisher.onNext(Event.Error(it.method, Exception(it.error)))
+        when (it.method) {
+            METHOD_DISCONNECT -> {
+
+            }
+            METHOD_UNSUBSCRIBE -> {
+            }
+            METHOD_CONNECT -> {
+            }
+            METHOD_SUBSCRIBE -> {
+            }
+            else -> {
+            } //ignore
         }
     }
 
