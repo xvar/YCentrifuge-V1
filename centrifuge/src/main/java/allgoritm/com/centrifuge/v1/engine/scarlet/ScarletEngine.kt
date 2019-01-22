@@ -219,5 +219,16 @@ class ScarletEngine(
         cs.sendUnsubscribe(Command.Unsubscribe(ChannelParams(channel)))
     }
 
-    override fun unsubscribe(data: Command.Unsubscribe) = cs.sendUnsubscribe(data)
+    override fun unsubscribe(data: Command.Unsubscribe) {
+        if (!isConnected.get()) {
+            return
+        }
+        synchronized(this) {
+            val channel = data.params.channel
+            if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
+                return
+            }
+        }
+        cs.sendUnsubscribe(data)
+    }
 }
