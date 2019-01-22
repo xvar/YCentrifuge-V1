@@ -9,9 +9,10 @@ import com.google.gson.Gson
 import com.tinder.scarlet.Scarlet
 import com.tinder.scarlet.WebSocket
 import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
-import com.tinder.scarlet.retry.LinearBackoffStrategy
+import com.tinder.scarlet.retry.ExponentialBackoffStrategy
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
+import io.reactivex.Completable
 import io.reactivex.Flowable
 import io.reactivex.Scheduler
 import io.reactivex.processors.BehaviorProcessor
@@ -34,6 +35,7 @@ class ScarletEngine(
     private val keyPing = "scarlet_engine_ping"
     private val keyResponses = "scarlet_engine_responses"
     private val keyEvents = "scarlet_engine_events"
+    private val keyPingReconnect = "scarlet_engine_ping_reconnect"
 
     private var scarletInstance : Scarlet? = null
     private lateinit var publisher : BehaviorProcessor<Event>
@@ -45,6 +47,8 @@ class ScarletEngine(
     private val isDisconnecting = AtomicBoolean(false)
     private val connectErrorCount = AtomicInteger(0)
     private val lastConnectionParams = AtomicReference<ConnectionParams>()
+
+    private lateinit var reconnect : Completable
 
     private lateinit var client : OkHttpClient
 
@@ -64,6 +68,10 @@ class ScarletEngine(
 
     override fun connect(url: String, data: Command.Connect) {
         lastConnectionParams.set(data.params)
+        reconnect = Completable.fromCallable {
+            connect(url, data)
+        }.delay(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
+
         if (scarletInstance == null) {
             client = initClient()
             scarletInstance = Scarlet.Builder()
@@ -71,7 +79,7 @@ class ScarletEngine(
                 .lifecycle(connectedLifecycle)
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
                 .addStreamAdapterFactory(RxJava2StreamAdapterFactory())
-                .backoffStrategy(LinearBackoffStrategy(5000))
+                .backoffStrategy(ExponentialBackoffStrategy(cfg.connectTimeoutMs, 2 * cfg.connectTimeoutMs))
                 .build()
             cs = scarletInstance!!.create<CentrifugeService>()
         }
@@ -132,8 +140,13 @@ class ScarletEngine(
                 .doOnNext { Log.d("timer", "ping") }
                 .subscribe {
                     cs.sendPing(Command.Ping)
+                    scheduleReconnect()
                 }
         )
+    }
+
+    private fun scheduleReconnect() {
+        compositeDisposable.put(keyPingReconnect, reconnect.subscribe())
     }
 
     private fun handle(it: Response) {
@@ -183,6 +196,9 @@ class ScarletEngine(
             METHOD_JOIN -> {
                 val jsonBody = it.body!!.value
                 publisher.onNext(Event.Join(jsonBody))
+            }
+            METHOD_PING -> {
+                compositeDisposable.clear(keyPingReconnect)
             }
         }
     }
