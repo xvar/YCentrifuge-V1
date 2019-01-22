@@ -9,6 +9,7 @@ import com.google.gson.Gson
 import com.tinder.scarlet.Scarlet
 import com.tinder.scarlet.WebSocket
 import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
+import com.tinder.scarlet.retry.LinearBackoffStrategy
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
 import io.reactivex.Flowable
@@ -18,13 +19,16 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class ScarletEngine(
     private val builder: OkHttpClient.Builder,
     private val gson: Gson,
     private val cfg: ConnectionConfig,
     private val workScheduler : Scheduler,
-    private val resultScheduler: Scheduler
+    private val resultScheduler: Scheduler,
+    private val connectedLifecycle: ConnectedLifecycle = ConnectedLifecycle()
 ) : YCentrifugeEngine {
 
     private val keyPing = "scarlet_engine_ping"
@@ -37,8 +41,10 @@ class ScarletEngine(
     private val compositeDisposable = CompositeDisposablesMap()
 
     private val subscribeMap = ConcurrentHashMap<String, Command.Subscribe>()
-    private var isConnected = AtomicBoolean(false)
     private val messengerMap = ConcurrentHashMap<String, Messenger>()
+    private val isDisconnecting = AtomicBoolean(false)
+    private val connectErrorCount = AtomicInteger(0)
+    private val lastConnectionParams = AtomicReference<ConnectionParams>()
 
     private lateinit var client : OkHttpClient
 
@@ -57,15 +63,19 @@ class ScarletEngine(
 
 
     override fun connect(url: String, data: Command.Connect) {
+        lastConnectionParams.set(data.params)
         if (scarletInstance == null) {
             client = initClient()
             scarletInstance = Scarlet.Builder()
                 .webSocketFactory(client.newWebSocketFactory(url))
+                .lifecycle(connectedLifecycle)
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
                 .addStreamAdapterFactory(RxJava2StreamAdapterFactory())
+                .backoffStrategy(LinearBackoffStrategy(5000))
                 .build()
             cs = scarletInstance!!.create<CentrifugeService>()
         }
+        connectedLifecycle.onStart()
 
         val responses = cs.observeResponses()
         compositeDisposable.put(keyResponses, responses
@@ -100,7 +110,18 @@ class ScarletEngine(
                 cs.sendConnect(data)
                 schedulePing()
             }
-            is WebSocket.Event.OnConnectionClosed -> publisher.onNext(Event.SocketClosed())
+            is WebSocket.Event.OnConnectionClosed -> {
+                publisher.onNext(Event.SocketClosed())
+
+                if (isDisconnecting.get()) {
+                    //disconnect by hands
+                    subscribeMap.clear()
+                    compositeDisposable.clearAll()
+                    publisher.onNext(Event.Disconnected())
+                    connectedLifecycle.onStop()
+                    isDisconnecting.set(false)
+                }
+            }
             is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
         }
     }
@@ -128,15 +149,9 @@ class ScarletEngine(
         when (it.method) {
             METHOD_CONNECT -> {
                 val jsonBody = it.body!!.value
-                isConnected.set(true)
+                connectedLifecycle.onConnected()
                 subscribe()
                 publisher.onNext(Event.Connected(jsonBody))
-            }
-            METHOD_DISCONNECT -> {
-                isConnected.set(false)
-                subscribeMap.clear()
-                compositeDisposable.clearAll()
-                publisher.onNext(Event.Disconnected())
             }
             METHOD_SUBSCRIBE -> {
                 val jsonBody = it.body!!.value
@@ -173,29 +188,27 @@ class ScarletEngine(
     }
 
     private fun handleError(it: Response) {
-        publisher.onNext(Event.Error(it.method, Exception(it.error)))
         when (it.method) {
-            METHOD_DISCONNECT -> {
-
-            }
-            METHOD_UNSUBSCRIBE -> {
-            }
             METHOD_CONNECT -> {
-            }
-            METHOD_SUBSCRIBE -> {
+                if (connectErrorCount.addAndGet(1) <= cfg.numTries) {
+                    cs.sendConnect(Command.Connect(lastConnectionParams.get()))
+                } else {
+                    publisher.onNext(Event.Error(it.method, Exception(it.error)))
+                    connectedLifecycle.onStop()
+                }
             }
             else -> {
-            } //ignore
+                publisher.onNext(Event.Error(it.method, Exception(it.error)))
+            }
         }
     }
 
     override fun disconnect(data: Command.Disconnect) {
-        if (!isConnected.get()) {
+        if (!connectedLifecycle.isConnected()) {
             return
         }
-        if (messengerMap.size > 0) {
-
-        }
+        isDisconnecting.set(true)
+        unsubscribeAll()
         cs.sendDisconnect(data)
     }
 
@@ -203,7 +216,7 @@ class ScarletEngine(
         if (!subscribeMap.contains(data)) {
             subscribeMap[data.params.channel] = data
         }
-        if (isConnected.get()) {
+        if (connectedLifecycle.isConnected()) {
             subscribe()
         }
     }
@@ -216,11 +229,11 @@ class ScarletEngine(
 
     private fun unsubscribeAll() = subscribeMap.forEach {
         val channel = it.value.params.channel
-        cs.sendUnsubscribe(Command.Unsubscribe(ChannelParams(channel)))
+        unsubscribe(Command.Unsubscribe(ChannelParams(channel)))
     }
 
     override fun unsubscribe(data: Command.Unsubscribe) {
-        if (!isConnected.get()) {
+        if (!connectedLifecycle.isConnected()) {
             return
         }
         synchronized(this) {
@@ -228,7 +241,7 @@ class ScarletEngine(
             if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
                 return
             }
+            cs.sendUnsubscribe(data)
         }
-        cs.sendUnsubscribe(data)
     }
 }

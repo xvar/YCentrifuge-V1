@@ -9,7 +9,6 @@ class LoggingInterceptor : Interceptor {
         val request = chain.request()
         val newRequestBuilder = request
             .newBuilder()
-            //.url("wss://api.youla.io/c/connection/websocket")
         newRequestBuilder
             .addHeader("Sec-WebSocket-Extensions", "permessage-deflate; client_max_window_bits; server_max_window_bits=15")
 
