@@ -95,7 +95,7 @@ class ScarletEngine(
             .subscribe ({
                 handle(it)
             },
-                {err -> Log.e(LOG_TAG, "parsed error", err)}
+                {err -> logger.log(level = ERROR, msg = "[Parsed response error: $err]", throwable = err)}
             ))
 
 
@@ -118,6 +118,7 @@ class ScarletEngine(
             is WebSocket.Event.OnConnectionOpened<*> -> {
                 val webSocket = event.webSocket as okhttp3.WebSocket
                 publisher.onNext(Event.SocketOpened(webSocket))
+                logger.log(msg = "[send Connect with $data]")
                 cs.sendConnect(data)
                 schedulePing()
             }
@@ -140,7 +141,7 @@ class ScarletEngine(
     private fun schedulePing() {
         compositeDisposable.put(keyPing,
             Flowable.interval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-                .doOnNext { logger.log(tag = "timer", msg = "sending ping") }
+                .doOnNext { logger.log(msg = "[send Ping]") }
                 .subscribe {
                     cs.sendPing(Command.Ping)
                     scheduleReconnect()
@@ -207,17 +208,22 @@ class ScarletEngine(
     }
 
     private fun handleError(it: Response) {
+        val error = Event.Error(it.method, Exception(it.error))
         when (it.method) {
             METHOD_CONNECT -> {
                 if (connectErrorCount.addAndGet(1) <= cfg.numTries) {
-                    cs.sendConnect(Command.Connect(lastConnectionParams.get()))
+                    val params = lastConnectionParams.get()
+                    logger.log(msg = "[send connect with $params]")
+                    cs.sendConnect(Command.Connect(params))
                 } else {
-                    publisher.onNext(Event.Error(it.method, Exception(it.error)))
+                    logger.log(level = ERROR, msg = "$error")
+                    publisher.onNext(error)
                     connectedLifecycle.onStop()
                 }
             }
             else -> {
-                publisher.onNext(Event.Error(it.method, Exception(it.error)))
+                logger.log(level = ERROR, msg = "$error")
+                publisher.onNext(error)
             }
         }
     }
@@ -228,6 +234,7 @@ class ScarletEngine(
         }
         isDisconnecting.set(true)
         unsubscribeAll()
+        logger.log(msg = "[send Disconnect with $data]")
         cs.sendDisconnect(data)
     }
 
@@ -242,6 +249,7 @@ class ScarletEngine(
 
     private fun subscribe() {
         subscribeMap.values.forEach {
+            logger.log(msg = "[send Subscribe with $it]")
             cs.sendSubscribe(it)
         }
     }
@@ -260,9 +268,13 @@ class ScarletEngine(
             if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
                 return
             }
+            logger.log(msg = "[send Unsubscribe with $data]")
             cs.sendUnsubscribe(data)
         }
     }
 
-    override fun refresh(data: Command.Refresh) = cs.sendRefresh(data)
+    override fun refresh(data: Command.Refresh) {
+        logger.log(msg = "[send Refresh with $data]")
+        cs.sendRefresh(data)
+    }
 }
