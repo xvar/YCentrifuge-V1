@@ -2,7 +2,7 @@ package allgoritm.com.centrifuge.v1.data
 
 import java.util.*
 
-const val LOG_TAG = "CENTRIFUGE"
+const val LOG_TAG = "YCENTRIFUGE"
 
 const val CHANNEL = "channel"
 const val DATA = "data"

@@ -4,6 +4,8 @@ import allgoritm.com.centrifuge.v1.contract.Messenger
 import allgoritm.com.centrifuge.v1.contract.YCentrifugeEngine
 import allgoritm.com.centrifuge.v1.data.*
 import allgoritm.com.centrifuge.v1.util.CompositeDisposablesMap
+import allgoritm.com.centrifuge.v1.util.log.ERROR
+import allgoritm.com.centrifuge.v1.util.log.Logger
 import android.util.Log
 import com.google.gson.Gson
 import com.tinder.scarlet.Scarlet
@@ -29,7 +31,8 @@ class ScarletEngine(
     private val cfg: ConnectionConfig,
     private val workScheduler : Scheduler,
     private val resultScheduler: Scheduler,
-    private val connectedLifecycle: ConnectedLifecycle = ConnectedLifecycle()
+    private val connectedLifecycle: ConnectedLifecycle,
+    private val logger: Logger
 ) : YCentrifugeEngine {
 
     private val keyPing = "scarlet_engine_ping"
@@ -61,7 +64,7 @@ class ScarletEngine(
             .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
             .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-            .addInterceptor(LoggingInterceptor())
+            .addInterceptor(LoggingInterceptor(logger))
             .build()
     }
 
@@ -99,10 +102,11 @@ class ScarletEngine(
         compositeDisposable.put(keyEvents, cs.observeWebSocketEvent()
             .subscribeOn(workScheduler)
             .observeOn(resultScheduler)
+            .doOnNext { logger.log(msg = "[WebSocket event: $it]") }
             .subscribe ({ event ->
                 handleEvent(event, data)
             },
-                {err -> Log.e(LOG_TAG, "event error", err)}
+                {err -> logger.log(level = ERROR, msg = "[WebSocket event error: $err]", throwable = err)}
             ))
     }
 
@@ -110,7 +114,6 @@ class ScarletEngine(
         event: WebSocket.Event?,
         data: Command.Connect
     ) {
-        Log.d(LOG_TAG, "websocket event = $event")
         when (event) {
             is WebSocket.Event.OnConnectionOpened<*> -> {
                 val webSocket = event.webSocket as okhttp3.WebSocket
@@ -137,7 +140,7 @@ class ScarletEngine(
     private fun schedulePing() {
         compositeDisposable.put(keyPing,
             Flowable.interval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-                .doOnNext { Log.d("timer", "ping") }
+                .doOnNext { logger.log(tag = "timer", msg = "sending ping") }
                 .subscribe {
                     cs.sendPing(Command.Ping)
                     scheduleReconnect()
@@ -150,7 +153,7 @@ class ScarletEngine(
     }
 
     private fun handle(it: Response) {
-        Log.d(LOG_TAG, "response = $it")
+        logger.log(msg = "[Response from socket: $it]")
         if (it.error != null) {
             handleError(it)
         } else {
@@ -187,7 +190,7 @@ class ScarletEngine(
                 val jsonBody = it.body!!.value
                 val messageReceived = Event.MessageReceived(jsonBody)
                 publisher.onNext(messageReceived)
-                Log.d(LOG_TAG, "message sent, $messageReceived")
+                logger.log(msg = "[Received message: $messageReceived]")
             }
             METHOD_LEAVE -> {
                 val jsonBody = it.body!!.value

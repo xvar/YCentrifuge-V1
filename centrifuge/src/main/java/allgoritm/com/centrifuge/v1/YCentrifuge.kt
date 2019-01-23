@@ -2,7 +2,9 @@ package allgoritm.com.centrifuge.v1
 
 import allgoritm.com.centrifuge.v1.contract.YCentrifugeEngine
 import allgoritm.com.centrifuge.v1.data.*
+import allgoritm.com.centrifuge.v1.engine.scarlet.ConnectedLifecycle
 import allgoritm.com.centrifuge.v1.engine.scarlet.ScarletEngine
+import allgoritm.com.centrifuge.v1.util.log.LoggerProvider
 import com.google.gson.GsonBuilder
 import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -20,7 +22,9 @@ object YCentrifugeFactory {
                 .create(),
             connectionConfig,
             Schedulers.io(),
-            AndroidSchedulers.mainThread()
+            AndroidSchedulers.mainThread(),
+            ConnectedLifecycle(),
+            LoggerProvider.get()
         )
     )
 }
