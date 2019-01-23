@@ -263,4 +263,6 @@ class ScarletEngine(
             cs.sendUnsubscribe(data)
         }
     }
+
+    override fun refresh(data: Command.Refresh) = cs.sendRefresh(data)
 }

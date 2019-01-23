@@ -8,5 +8,6 @@
     <string name="publish">publish</string>
     <string name="empty">empty</string>
     <string name="presence">presence</string>
+    <string name="refresh">refresh</string>
 
 </resources>

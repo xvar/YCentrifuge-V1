@@ -52,6 +52,7 @@ class MainViewModel @Inject constructor(
             is UiEvent.History -> messenger.history()
             is UiEvent.Presence -> messenger.presence()
             is UiEvent.Disconnect -> centrifuge.disconnect()
+            is UiEvent.Refresh -> centrifuge.refresh()
         }
     }
 

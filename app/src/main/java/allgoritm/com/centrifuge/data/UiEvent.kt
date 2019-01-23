@@ -7,6 +7,7 @@ const val UNSUBSCRIBE = 4
 const val DISCONNECT = 5
 const val PUBLISH = 6
 const val PRESENCE = 7
+const val REFRESH = 8
 sealed class UiEvent(val id: Int) {
     class CredentialsAndConnect: UiEvent(CREDENTIALS)
     class Subscribe : UiEvent(SUBSCRIBE)
@@ -15,4 +16,5 @@ sealed class UiEvent(val id: Int) {
     class Publish(val data : String) : UiEvent(PUBLISH)
     class Presence : UiEvent(PRESENCE)
     class History : UiEvent(HISTORY)
+    class Refresh : UiEvent(REFRESH)
 }

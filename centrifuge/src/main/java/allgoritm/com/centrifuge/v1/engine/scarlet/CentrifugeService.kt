@@ -26,6 +26,8 @@ interface CentrifugeService {
     fun sendHistory(command: Command.History)
     @Send
     fun sendPresence(command: Command.Presence)
+    @Send
+    fun sendRefresh(command: Command.Refresh)
     @Receive
     fun observeResponses(): Flowable<Response>
 }

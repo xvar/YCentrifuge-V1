@@ -41,4 +41,5 @@ class YCentrifuge internal constructor(
     fun disconnect() = engine.disconnect(Command.Disconnect())
     fun subscribe(params: SubscribeParams) = engine.subscribe(Command.Subscribe(params))
     fun unsubscribe(channel: String) = engine.unsubscribe(Command.Unsubscribe(ChannelParams(channel)))
+    fun refresh() = engine.refresh(Command.Refresh)
 }

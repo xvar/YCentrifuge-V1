@@ -67,7 +67,7 @@
         android:layout_width="180dp"
         android:layout_height="wrap_content"
         android:text="@string/disconnect"
-        app:layout_constraintEnd_toStartOf="@+id/empty1"
+        app:layout_constraintEnd_toStartOf="@+id/refresh"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/unsubscribe" />
@@ -77,17 +77,17 @@
         android:layout_width="180dp"
         android:layout_height="wrap_content"
         android:text="@string/presence"
-        app:layout_constraintBottom_toTopOf="@+id/empty1"
+        app:layout_constraintBottom_toTopOf="@+id/refresh"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/unsubscribe"
         app:layout_constraintTop_toBottomOf="@+id/publish" />
 
     <Button
-        android:id="@+id/empty1"
+        android:id="@+id/refresh"
         android:layout_width="180dp"
         android:layout_height="wrap_content"
-        android:text="@string/empty"
+        android:text="@string/refresh"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/disconnect"
@@ -98,7 +98,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         app:barrierDirection="bottom"
-        app:constraint_referenced_ids="disconnect,empty1" />
+        app:constraint_referenced_ids="disconnect,refresh" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/logRv"

@@ -51,6 +51,7 @@ class MainFragment : BaseFragment() {
         disconnect.setOnClickListener { viewModel.accept(UiEvent.Disconnect()) }
         presence.setOnClickListener { viewModel.accept(UiEvent.Presence()) }
         publish.setOnClickListener { viewModel.accept(UiEvent.Publish(data = UUID.randomUUID().toString())) }
+        refresh.setOnClickListener { viewModel.accept(UiEvent.Refresh()) }
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {

@@ -15,4 +15,6 @@ interface YCentrifugeEngine {
     fun subscribe(data: Command.Subscribe)
 
     fun unsubscribe(data: Command.Unsubscribe)
+
+    fun refresh(data: Command.Refresh)
 }
