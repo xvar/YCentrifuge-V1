@@ -72,6 +72,7 @@ class ScarletEngine(
 
 
     override fun connect(url: String, data: Command.Connect) {
+        connectErrorCount.set(0)
         lastConnectionParams.set(data.params)
         reconnect = Completable.fromCallable {
             connect(url, data)
