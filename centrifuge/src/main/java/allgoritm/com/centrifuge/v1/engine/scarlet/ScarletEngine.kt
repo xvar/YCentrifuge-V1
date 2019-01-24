@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import com.tinder.scarlet.Scarlet
 import com.tinder.scarlet.WebSocket
 import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
+import com.tinder.scarlet.retry.BackoffStrategy
 import com.tinder.scarlet.retry.ExponentialBackoffStrategy
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
@@ -32,7 +33,8 @@ class ScarletEngine(
     private val workScheduler : Scheduler,
     private val resultScheduler: Scheduler,
     private val connectedLifecycle: ConnectedLifecycle,
-    private val logger: Logger
+    private val logger: Logger,
+    private val backoffStrategy: BackoffStrategy
 ) : YCentrifugeEngine {
 
     private val keyPing = "scarlet_engine_ping"
@@ -82,7 +84,7 @@ class ScarletEngine(
                 .lifecycle(connectedLifecycle)
                 .addMessageAdapterFactory(GsonMessageAdapter.Factory(gson))
                 .addStreamAdapterFactory(RxJava2StreamAdapterFactory())
-                .backoffStrategy(ExponentialBackoffStrategy(cfg.connectTimeoutMs, 2 * cfg.connectTimeoutMs))
+                .backoffStrategy(backoffStrategy)
                 .build()
             cs = scarletInstance!!.create<CentrifugeService>()
         }

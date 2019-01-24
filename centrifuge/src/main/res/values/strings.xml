@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">centrifuge</string>
+    <string name="logs_disabled">Centrifuge library could not write log. Enable writing to external storage</string>
 </resources>

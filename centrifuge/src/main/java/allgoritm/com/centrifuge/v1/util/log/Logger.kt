@@ -10,4 +10,12 @@ const val VERBOSE = -504
 
 interface Logger {
     fun log(level : Int = DEBUG, tag: String = LOG_TAG, msg: String, throwable: Throwable? = null)
+    fun tag(level: Int): String = when (level) {
+        ERROR -> "E"
+        WARN -> "W"
+        INFO -> "I"
+        DEBUG -> "D"
+        VERBOSE -> "V"
+        else -> "WTF"
+    }
 }
