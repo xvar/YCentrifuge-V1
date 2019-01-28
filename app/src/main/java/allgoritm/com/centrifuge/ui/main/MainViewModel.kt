@@ -14,6 +14,7 @@ import io.reactivex.functions.Consumer
 import io.reactivex.processors.BehaviorProcessor
 import io.reactivex.schedulers.Schedulers
 import org.json.JSONObject
+import java.util.*
 import javax.inject.Inject
 
 class MainViewModel @Inject constructor(
@@ -23,7 +24,8 @@ class MainViewModel @Inject constructor(
 
     private val strProcessor = BehaviorProcessor.create<List<String>>()
     private val centrifuge = cf.create(ConnectionConfig())
-    private lateinit var centrifugeCredentials : CentrifugeCredentials
+    private val channelStack = Stack<String>()
+    private val messengerStack = Stack<Messenger>()
     private val logs = ArrayList<String>()
 
     fun observe() : Flowable<List<String>> {
@@ -46,25 +48,31 @@ class MainViewModel @Inject constructor(
                         }
                     })
             }
-            is UiEvent.Subscribe -> centrifuge.subscribe(SubscribeParams(centrifugeCredentials.commonChannel))
-            is UiEvent.Unsubscribe -> centrifuge.unsubscribe(centrifugeCredentials.commonChannel)
-            is UiEvent.Publish -> messenger.publish(JSONObject().apply { put("key", e.data) })
-            is UiEvent.History -> messenger.history()
-            is UiEvent.Presence -> messenger.presence()
+            is UiEvent.Subscribe -> centrifuge.subscribe(SubscribeParams(channelStack.peek()))
+            is UiEvent.Unsubscribe -> {
+                val channel = channelStack.pop()
+                if (channelStack.size == 0) {
+                    channelStack.push(channel)
+                }
+                centrifuge.unsubscribe(channel)
+            }
+            is UiEvent.Publish -> messengerStack.peek().publish(JSONObject().apply { put("key", e.data) })
+            is UiEvent.History -> messengerStack.peek().history()
+            is UiEvent.Presence -> messengerStack.peek().presence()
             is UiEvent.Disconnect -> centrifuge.disconnect()
             is UiEvent.Refresh -> centrifuge.refresh()
         }
     }
 
     private fun startCentrifuge(c: CentrifugeCredentials) {
-        centrifugeCredentials = c
+        channelStack.push(c.commonChannel)
         addDisposable("main_vm_ui_events",
             centrifuge.events().subscribe { event ->
                 Log.e("client", "$event")
-                publish(event.toString())
+                publish("all_events $event")
                 if (event is Event.Subscribed) {
                     Log.e("client", "event subscribed")
-                    addMessenger(event)
+                    addMessenger(channelStack.peek(), event)
                 }
             }
         )
@@ -77,15 +85,20 @@ class MainViewModel @Inject constructor(
         strProcessor.onNext(logs)
     }
 
-    private lateinit var messenger: Messenger
-    private fun addMessenger(event: Event.Subscribed) {
-        messenger = event.receiver
-        addDisposable("main_vm_messenger",
+    private val testChatChannel = "chat#5abcfaf55f9037628c786b22,5abb8f965f903765305c6e9b"
+    private fun addMessenger(key: String, event: Event.Subscribed) {
+        messengerStack.push(event.receiver)
+        val messenger = messengerStack.peek()
+        addDisposable(key,
             messenger.observe()
                 .subscribe(
                     { data ->
-                        Log.e("client", "messenger = $data")
-                        publish(data.toString())
+                        val logStr = "channel = $key, data = $data"
+                        Log.e("client", logStr)
+                        publish(logStr)
+                        if (data is Event.MessageReceived && channelStack.peek() != testChatChannel) {
+                            channelStack.push(testChatChannel)
+                        }
                     },
                     {
                         Log.e("client", "messenger, throwable = $it")
