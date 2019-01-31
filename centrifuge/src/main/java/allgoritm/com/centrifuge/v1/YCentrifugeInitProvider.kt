@@ -8,7 +8,7 @@ import android.database.Cursor
 import android.net.Uri
 
 
-class YCentrifugeInitProvider : ContentProvider() {
+internal class YCentrifugeInitProvider : ContentProvider() {
 
     /** Should match the [YCentrifugeInitProvider] authority if $androidId is empty.  */
     private val emptyApplicationProvideAuthority = "allgoritm.com.centrifuge.v1.ycentrifugeinitprovider"

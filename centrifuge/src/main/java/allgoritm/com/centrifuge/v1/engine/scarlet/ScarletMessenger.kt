@@ -6,7 +6,7 @@ import io.reactivex.Flowable
 import io.reactivex.processors.BehaviorProcessor
 import org.json.JSONObject
 
-class ScarletMessenger(
+internal class ScarletMessenger(
     override val channel: String,
     private val centrifugeService: CentrifugeService,
     private val publisher: BehaviorProcessor<Event>

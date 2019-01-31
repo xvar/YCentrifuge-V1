@@ -3,9 +3,8 @@ package allgoritm.com.centrifuge.v1.contract
 import allgoritm.com.centrifuge.v1.data.Command
 import allgoritm.com.centrifuge.v1.data.Event
 import io.reactivex.processors.BehaviorProcessor
-import org.reactivestreams.Processor
 
-interface YCentrifugeEngine {
+internal interface YCentrifugeEngine {
     fun init(eventPublisher: BehaviorProcessor<Event>)
 
     fun connect(url: String, data: Command.Connect)

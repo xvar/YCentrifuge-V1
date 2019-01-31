@@ -7,7 +7,7 @@ import com.tinder.scarlet.ws.Receive
 import com.tinder.scarlet.ws.Send
 import io.reactivex.Flowable
 
-interface CentrifugeService {
+internal interface CentrifugeService {
     @Receive
     fun observeWebSocketEvent(): Flowable<WebSocket.Event>
     @Send

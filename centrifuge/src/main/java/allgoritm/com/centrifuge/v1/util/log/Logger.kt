@@ -8,7 +8,7 @@ const val INFO = -502
 const val DEBUG = -503
 const val VERBOSE = -504
 
-interface Logger {
+internal interface Logger {
     fun log(level : Int = DEBUG, tag: String = LOG_TAG, msg: String, throwable: Throwable? = null)
     fun tag(level: Int): String = when (level) {
         ERROR -> "E"

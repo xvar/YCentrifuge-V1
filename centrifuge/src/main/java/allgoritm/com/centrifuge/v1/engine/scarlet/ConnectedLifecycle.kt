@@ -4,7 +4,7 @@ import com.tinder.scarlet.Lifecycle
 import com.tinder.scarlet.lifecycle.LifecycleRegistry
 import java.util.concurrent.atomic.AtomicBoolean
 
-class ConnectedLifecycle(private val lifecycleRegistry: LifecycleRegistry = LifecycleRegistry())
+internal class ConnectedLifecycle(private val lifecycleRegistry: LifecycleRegistry = LifecycleRegistry())
     : Lifecycle by lifecycleRegistry
 {
     private val isConnected = AtomicBoolean(false)

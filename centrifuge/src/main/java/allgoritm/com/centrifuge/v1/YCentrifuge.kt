@@ -3,14 +3,13 @@ package allgoritm.com.centrifuge.v1
 import allgoritm.com.centrifuge.v1.contract.YCentrifugeEngine
 import allgoritm.com.centrifuge.v1.data.*
 import allgoritm.com.centrifuge.v1.engine.scarlet.ConnectedLifecycle
+import allgoritm.com.centrifuge.v1.engine.scarlet.CustomReconnectStrategy
 import allgoritm.com.centrifuge.v1.engine.scarlet.ScarletEngine
 import allgoritm.com.centrifuge.v1.util.log.LoggerProvider
 import com.google.gson.GsonBuilder
-import com.tinder.scarlet.retry.ExponentialBackoffStrategy
 import io.reactivex.Flowable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.processors.BehaviorProcessor
-import io.reactivex.processors.PublishProcessor
 import io.reactivex.schedulers.Schedulers
 import okhttp3.OkHttpClient
 
@@ -26,7 +25,7 @@ object YCentrifugeFactory {
             AndroidSchedulers.mainThread(),
             ConnectedLifecycle(),
             LoggerProvider.get(),
-            ExponentialBackoffStrategy(connectionConfig.connectTimeoutMs, Long.MAX_VALUE)
+            CustomReconnectStrategy(connectionConfig)
         )
     )
 }

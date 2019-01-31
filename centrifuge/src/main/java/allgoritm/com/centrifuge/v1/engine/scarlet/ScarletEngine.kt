@@ -6,13 +6,11 @@ import allgoritm.com.centrifuge.v1.data.*
 import allgoritm.com.centrifuge.v1.util.CompositeDisposablesMap
 import allgoritm.com.centrifuge.v1.util.log.ERROR
 import allgoritm.com.centrifuge.v1.util.log.Logger
-import android.util.Log
 import com.google.gson.Gson
 import com.tinder.scarlet.Scarlet
 import com.tinder.scarlet.WebSocket
 import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
 import com.tinder.scarlet.retry.BackoffStrategy
-import com.tinder.scarlet.retry.ExponentialBackoffStrategy
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
 import io.reactivex.Completable
@@ -23,10 +21,9 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
-class ScarletEngine(
+internal class ScarletEngine(
     private val builder: OkHttpClient.Builder,
     private val gson: Gson,
     private val cfg: ConnectionConfig,
@@ -50,7 +47,6 @@ class ScarletEngine(
     private val subscribeMap = ConcurrentHashMap<String, Command.Subscribe>()
     private val messengerMap = ConcurrentHashMap<String, Messenger>()
     private val isDisconnecting = AtomicBoolean(false)
-    private val connectErrorCount = AtomicInteger(0)
     private val lastConnectionParams = AtomicReference<ConnectionParams>()
 
     private lateinit var reconnect : Completable
@@ -72,7 +68,6 @@ class ScarletEngine(
 
 
     override fun connect(url: String, data: Command.Connect) {
-        connectErrorCount.set(0)
         lastConnectionParams.set(data.params)
         reconnect = Completable.fromCallable {
             connect(url, data)
@@ -212,23 +207,8 @@ class ScarletEngine(
 
     private fun handleError(it: Response) {
         val error = Event.Error(it.method, Exception(it.error))
-        when (it.method) {
-            METHOD_CONNECT -> {
-                if (connectErrorCount.addAndGet(1) <= cfg.numTries) {
-                    val params = lastConnectionParams.get()
-                    logger.log(msg = "[send connect with $params]")
-                    cs.sendConnect(Command.Connect(params))
-                } else {
-                    logger.log(level = ERROR, msg = "$error")
-                    publisher.onNext(error)
-                    connectedLifecycle.onStop()
-                }
-            }
-            else -> {
-                logger.log(level = ERROR, msg = "$error")
-                publisher.onNext(error)
-            }
-        }
+        logger.log(level = ERROR, msg = "$error")
+        publisher.onNext(error)
     }
 
     override fun disconnect(data: Command.Disconnect) {

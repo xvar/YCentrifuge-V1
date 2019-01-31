@@ -1,15 +1,12 @@
 package allgoritm.com.centrifuge.v1.util.log
 
 import allgoritm.com.centrifuge.v1.BuildConfig
-import allgoritm.com.centrifuge.v1.R
 import allgoritm.com.centrifuge.v1.data.LOG_TAG
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Process
 import android.util.Log
-import android.widget.Toast
-
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
@@ -17,7 +14,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.*
 
-class FileLogger(/*non null app-level context*/private val context: Context, private val logName: String) : Logger {
+internal class FileLogger(/*non null app-level context*/private val context: Context, private val logName: String) : Logger {
 
     private val logFolder: String = context.getExternalFilesDir("logs")!!.path + "/"
 

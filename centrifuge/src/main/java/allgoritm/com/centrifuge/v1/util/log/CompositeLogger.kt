@@ -1,9 +1,9 @@
 package allgoritm.com.centrifuge.v1.util.log
 
-class CompositeLogger : Logger {
+internal class CompositeLogger(list: List<Logger>) : Logger {
     private val loggerList = ArrayList<Logger>()
 
-    constructor(list: List<Logger>) {
+    init {
         loggerList.clear()
         loggerList.addAll(list)
     }

@@ -2,7 +2,7 @@ package allgoritm.com.centrifuge.v1.util.log
 
 import android.util.Log
 
-class AndroidLogger: Logger {
+internal class AndroidLogger: Logger {
 
     override fun log(level: Int, tag: String, msg: String, throwable: Throwable?) {
         when (level) {
