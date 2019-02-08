@@ -31,6 +31,8 @@ internal class ConnectedLifecycle(private val lifecycleRegistry: LifecycleRegist
         }
     }
 
+    fun onConnectionFailed() = isConnected.set(false)
+
     fun onConnected() = isConnected.set(true)
 
 }

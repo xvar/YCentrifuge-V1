@@ -131,7 +131,10 @@ internal class ScarletEngine(
                     isDisconnecting.set(false)
                 }
             }
-            is WebSocket.Event.OnConnectionFailed -> publisher.onNext(Event.SocketConnectionFailed(event.throwable))
+            is WebSocket.Event.OnConnectionFailed -> {
+                publisher.onNext(Event.SocketConnectionFailed(event.throwable))
+                connectedLifecycle.onConnectionFailed()
+            }
         }
     }
 
