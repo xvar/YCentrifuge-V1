@@ -31,7 +31,7 @@ internal class ScarletEngine(
     private val resultScheduler: Scheduler,
     private val connectedLifecycle: ConnectedLifecycle,
     private val logger: Logger,
-    private val backoffStrategy: BackoffStrategy
+    private val backoffStrategy: CustomReconnectStrategy
 ) : YCentrifugeEngine {
 
     private val keyPing = "scarlet_engine_ping"
@@ -116,6 +116,7 @@ internal class ScarletEngine(
                 val webSocket = event.webSocket as okhttp3.WebSocket
                 publisher.onNext(Event.SocketOpened(webSocket))
                 logger.log(msg = "[send Connect with $data]")
+                backoffStrategy.isForcedReconnect.set(false)
                 cs.sendConnect(data)
                 schedulePing()
             }
@@ -150,6 +151,7 @@ internal class ScarletEngine(
         val url = lastUrl.get()
         val data = lastConnectionCommand.get()
         if (url != null && data != null && !connectedLifecycle.isConnected()) {
+            backoffStrategy.isForcedReconnect.set(true)
             connect(url, data, true)
         }
     }
