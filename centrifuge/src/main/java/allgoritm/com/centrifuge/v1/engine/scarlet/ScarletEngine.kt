@@ -155,9 +155,9 @@ internal class ScarletEngine(
     private fun schedulePing() {
         compositeDisposable.put(keyPing,
             Flowable.interval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-                .doOnNext { logger.log(msg = "[send Ping]") }
                 .subscribe {
                     if (connectedLifecycle.isConnected()) {
+                        logger.log(msg = "[send Ping]")
                         cs.sendPing(Command.Ping)
                     }
                 }
