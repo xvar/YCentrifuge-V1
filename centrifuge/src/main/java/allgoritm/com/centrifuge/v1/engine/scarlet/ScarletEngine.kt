@@ -68,11 +68,11 @@ internal class ScarletEngine(
     }
 
 
-    override fun connect(url: String, data: Command.Connect, force : Boolean) {
+    override fun connect(url: String, data: Command.Connect) {
         lastConnectionCommand.set(data)
         lastUrl.set(url)
 
-        if (scarletInstance == null || force) {
+        if (scarletInstance == null) {
             client = initClient()
             scarletInstance = Scarlet.Builder()
                 .webSocketFactory(client.newWebSocketFactory(url))
@@ -116,7 +116,7 @@ internal class ScarletEngine(
                 val webSocket = event.webSocket as okhttp3.WebSocket
                 publisher.onNext(Event.SocketOpened(webSocket))
                 logger.log(msg = "[send Connect with $data]")
-                backoffStrategy.isForcedReconnect.set(false)
+                //backoffStrategy.isForcedReconnect.set(false)
                 cs.sendConnect(data)
                 schedulePing()
             }
@@ -151,8 +151,9 @@ internal class ScarletEngine(
         val url = lastUrl.get()
         val data = lastConnectionCommand.get()
         if (url != null && data != null && !connectedLifecycle.isConnected()) {
-            backoffStrategy.isForcedReconnect.set(true)
-            connect(url, data, true)
+            //backoffStrategy.isForcedReconnect.set(true)
+            connectedLifecycle.onStop()
+            connectedLifecycle.onStart()
         }
     }
 
