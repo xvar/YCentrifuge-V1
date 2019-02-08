@@ -107,25 +107,6 @@ internal class ScarletEngine(
             ))
     }
 
-    override fun unsubscribe(data: Command.Unsubscribe) {
-        if (!connectedLifecycle.isConnected()) {
-            return
-        }
-        synchronized(this) {
-            val channel = data.params.channel
-            if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
-                return
-            }
-            logger.log(msg = "[send Unsubscribe with $data]")
-            cs.sendUnsubscribe(data)
-        }
-    }
-
-    override fun refresh(data: Command.Refresh) {
-        logger.log(msg = "[send Refresh with $data]")
-        cs.sendRefresh(data)
-    }
-
     private fun handleEvent(
         event: WebSocket.Event?,
         data: Command.Connect
@@ -168,7 +149,7 @@ internal class ScarletEngine(
     private fun reconnect() {
         val url = lastUrl.get()
         val data = lastConnectionCommand.get()
-        if (url != null && data != null) {
+        if (url != null && data != null && !connectedLifecycle.isConnected()) {
             connect(url, data, true)
         }
     }
@@ -273,4 +254,22 @@ internal class ScarletEngine(
         unsubscribe(Command.Unsubscribe(ChannelParams(channel)))
     }
 
+    override fun unsubscribe(data: Command.Unsubscribe) {
+        if (!connectedLifecycle.isConnected()) {
+            return
+        }
+        synchronized(this) {
+            val channel = data.params.channel
+            if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
+                return
+            }
+            logger.log(msg = "[send Unsubscribe with $data]")
+            cs.sendUnsubscribe(data)
+        }
+    }
+
+    override fun refresh(data: Command.Refresh) {
+        logger.log(msg = "[send Refresh with $data]")
+        cs.sendRefresh(data)
+    }
 }
