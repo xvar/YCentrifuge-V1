@@ -176,7 +176,7 @@ internal class ScarletEngine(
     private fun scheduleReconnect() {
         compositeDisposable.put(keyPingReconnect,
             reconnect
-                .subscribeOn(workScheduler)
+                .delay(cfg.pingIntervalMs, TimeUnit.MILLISECONDS, workScheduler)
                 .observeOn(resultScheduler)
                 .subscribe()
         )
