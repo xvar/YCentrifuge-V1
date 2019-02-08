@@ -70,7 +70,7 @@ internal class ScarletEngine(
     override fun connect(url: String, data: Command.Connect, force : Boolean) {
         lastConnectionParams.set(data.params)
         reconnect = Completable.fromCallable {
-            connect(url, data)
+            connect(url, data, true)
         }.delay(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
 
         if (scarletInstance == null || force) {
