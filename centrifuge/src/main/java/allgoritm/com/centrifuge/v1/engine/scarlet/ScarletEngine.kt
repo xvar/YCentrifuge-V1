@@ -13,7 +13,6 @@ import com.tinder.scarlet.messageadapter.gson.GsonMessageAdapter
 import com.tinder.scarlet.retry.BackoffStrategy
 import com.tinder.scarlet.streamadapter.rxjava2.RxJava2StreamAdapterFactory
 import com.tinder.scarlet.websocket.okhttp.newWebSocketFactory
-import io.reactivex.Completable
 import io.reactivex.Flowable
 import io.reactivex.Scheduler
 import io.reactivex.processors.BehaviorProcessor
@@ -50,7 +49,8 @@ internal class ScarletEngine(
     private val lastConnectionCommand = AtomicReference<Command.Connect>()
     private val lastUrl = AtomicReference<String>()
 
-    private val reconnect : Completable = Completable.fromCallable { reconnect() }
+    private val reconnectSubj = BehaviorProcessor.create<Boolean>()
+    private val debouncedReconnect = reconnectSubj.debounce(cfg.pingIntervalMs + cfg.pongTimeoutMs, TimeUnit.MILLISECONDS)
 
     private lateinit var client : OkHttpClient
 
@@ -71,6 +71,7 @@ internal class ScarletEngine(
     override fun connect(url: String, data: Command.Connect) {
         lastConnectionCommand.set(data)
         lastUrl.set(url)
+        reconnectSubj.onNext(true)
 
         if (scarletInstance == null) {
             client = initClient()
@@ -83,6 +84,18 @@ internal class ScarletEngine(
                 .build()
             cs = scarletInstance!!.create<CentrifugeService>()
         }
+
+        compositeDisposable.put(keyPingReconnect, debouncedReconnect
+            .subscribeOn(workScheduler)
+            .observeOn(resultScheduler)
+            .skip(1)
+            .subscribe {
+                if (!it && !connectedLifecycle.isConnected()) {
+                    connectedLifecycle.onStop()
+                    connectedLifecycle.onStart()
+                }
+            })
+
         connectedLifecycle.onStart()
 
         val responses = cs.observeResponses()
@@ -134,6 +147,7 @@ internal class ScarletEngine(
             is WebSocket.Event.OnConnectionFailed -> {
                 publisher.onNext(Event.SocketConnectionFailed(event.throwable))
                 connectedLifecycle.onConnectionFailed()
+                reconnectSubj.onNext(false)
             }
         }
     }
@@ -144,26 +158,7 @@ internal class ScarletEngine(
                 .doOnNext { logger.log(msg = "[send Ping]") }
                 .subscribe {
                     cs.sendPing(Command.Ping)
-                    scheduleReconnect()
                 }
-        )
-    }
-
-    private fun reconnect() {
-        val url = lastUrl.get()
-        val data = lastConnectionCommand.get()
-        if (url != null && data != null && !connectedLifecycle.isConnected()) {
-            connectedLifecycle.onStop()
-            connectedLifecycle.onStart()
-        }
-    }
-
-    private fun scheduleReconnect() {
-        compositeDisposable.put(keyPingReconnect,
-            reconnect
-                .delay(cfg.pingIntervalMs, TimeUnit.MILLISECONDS, workScheduler)
-                .observeOn(resultScheduler)
-                .subscribe()
         )
     }
 
@@ -216,7 +211,7 @@ internal class ScarletEngine(
                 publisher.onNext(Event.Join(jsonBody))
             }
             METHOD_PING -> {
-                compositeDisposable.clear(keyPingReconnect)
+                reconnectSubj.onNext(true)
             }
         }
     }
