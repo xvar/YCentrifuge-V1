@@ -47,9 +47,10 @@ internal class ScarletEngine(
     private val subscribeMap = ConcurrentHashMap<String, Command.Subscribe>()
     private val messengerMap = ConcurrentHashMap<String, Messenger>()
     private val isDisconnecting = AtomicBoolean(false)
-    private val lastConnectionParams = AtomicReference<ConnectionParams>()
+    private val lastConnectionCommand = AtomicReference<Command.Connect>()
+    private val lastUrl = AtomicReference<String>()
 
-    private lateinit var reconnect : Completable
+    private val reconnect : Completable = Completable.fromCallable { reconnect() }
 
     private lateinit var client : OkHttpClient
 
@@ -68,10 +69,8 @@ internal class ScarletEngine(
 
 
     override fun connect(url: String, data: Command.Connect, force : Boolean) {
-        lastConnectionParams.set(data.params)
-        reconnect = Completable.fromCallable {
-            connect(url, data, true)
-        }.delay(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        lastConnectionCommand.set(data)
+        lastUrl.set(url)
 
         if (scarletInstance == null || force) {
             client = initClient()
@@ -106,6 +105,25 @@ internal class ScarletEngine(
             },
                 {err -> logger.log(level = ERROR, msg = "[WebSocket event error: $err]", throwable = err)}
             ))
+    }
+
+    override fun unsubscribe(data: Command.Unsubscribe) {
+        if (!connectedLifecycle.isConnected()) {
+            return
+        }
+        synchronized(this) {
+            val channel = data.params.channel
+            if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
+                return
+            }
+            logger.log(msg = "[send Unsubscribe with $data]")
+            cs.sendUnsubscribe(data)
+        }
+    }
+
+    override fun refresh(data: Command.Refresh) {
+        logger.log(msg = "[send Refresh with $data]")
+        cs.sendRefresh(data)
     }
 
     private fun handleEvent(
@@ -147,8 +165,21 @@ internal class ScarletEngine(
         )
     }
 
+    private fun reconnect() {
+        val url = lastUrl.get()
+        val data = lastConnectionCommand.get()
+        if (url != null && data != null) {
+            connect(url, data, true)
+        }
+    }
+
     private fun scheduleReconnect() {
-        compositeDisposable.put(keyPingReconnect, reconnect.subscribe())
+        compositeDisposable.put(keyPingReconnect,
+            reconnect
+                .subscribeOn(workScheduler)
+                .observeOn(resultScheduler)
+                .subscribe()
+        )
     }
 
     private fun handle(it: Response) {
@@ -242,22 +273,4 @@ internal class ScarletEngine(
         unsubscribe(Command.Unsubscribe(ChannelParams(channel)))
     }
 
-    override fun unsubscribe(data: Command.Unsubscribe) {
-        if (!connectedLifecycle.isConnected()) {
-            return
-        }
-        synchronized(this) {
-            val channel = data.params.channel
-            if (!messengerMap.containsKey(channel) || !subscribeMap.containsKey(channel)) {
-                return
-            }
-            logger.log(msg = "[send Unsubscribe with $data]")
-            cs.sendUnsubscribe(data)
-        }
-    }
-
-    override fun refresh(data: Command.Refresh) {
-        logger.log(msg = "[send Refresh with $data]")
-        cs.sendRefresh(data)
-    }
 }
