@@ -7,7 +7,7 @@ import io.reactivex.processors.BehaviorProcessor
 internal interface YCentrifugeEngine {
     fun init(eventPublisher: BehaviorProcessor<Event>)
 
-    fun connect(url: String, data: Command.Connect)
+    fun connect(url: String, data: Command.Connect, force : Boolean = false)
 
     fun disconnect(data: Command.Disconnect)
 
