@@ -90,7 +90,7 @@ internal class ScarletEngine(
             .observeOn(resultScheduler)
             .skip(1)
             .subscribe {
-                if (!it && !connectedLifecycle.isConnected()) {
+                if (!it) {
                     connectedLifecycle.onStop()
                     connectedLifecycle.onStart()
                 }
@@ -157,7 +157,9 @@ internal class ScarletEngine(
             Flowable.interval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
                 .doOnNext { logger.log(msg = "[send Ping]") }
                 .subscribe {
-                    cs.sendPing(Command.Ping)
+                    if (connectedLifecycle.isConnected()) {
+                        cs.sendPing(Command.Ping)
+                    }
                 }
         )
     }
