@@ -39,19 +39,19 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.1'
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.11"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.3.21"
 
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.0'
     implementation 'io.reactivex.rxjava2:rxjava:2.2.0'
     implementation 'com.squareup.okhttp3:okhttp:3.10.0'
     implementation 'com.squareup.okhttp3:logging-interceptor:3.10.0'
-    implementation 'com.github.tinder.scarlet:scarlet:0.2.3-alpha1'
-    implementation 'com.github.tinder.scarlet:scarlet-stream-adapter-rxjava2:0.2.3-alpha1'
-    implementation ("com.github.tinder.scarlet:scarlet-websocket-okhttp:0.2.3-alpha1") {
+    implementation 'com.github.xvar.scarlet:scarlet:0.2.3-beta'
+    implementation 'com.github.xvar.scarlet:scarlet-stream-adapter-rxjava2:0.2.3-beta'
+    implementation ("com.github.xvar.scarlet:scarlet-websocket-okhttp:0.2.3-beta") {
         exclude group: 'com.squareup.okhttp3'
         transitive=true
         changing=true
     }
-    implementation 'com.github.tinder.scarlet:scarlet-message-adapter-gson:0.2.3-alpha1'
+    implementation 'com.github.xvar.scarlet:scarlet-message-adapter-gson:0.2.3-beta'
 
 }
