@@ -4,6 +4,7 @@ import allgoritm.com.centrifuge.v1.contract.Messenger
 import allgoritm.com.centrifuge.v1.contract.YCentrifugeEngine
 import allgoritm.com.centrifuge.v1.data.*
 import allgoritm.com.centrifuge.v1.util.CompositeDisposablesMap
+import allgoritm.com.centrifuge.v1.util.log.DummyLogger
 import allgoritm.com.centrifuge.v1.util.log.ERROR
 import allgoritm.com.centrifuge.v1.util.log.Logger
 import com.google.gson.Gson
@@ -59,12 +60,15 @@ internal class ScarletEngine(
     }
 
     private fun initClient(): OkHttpClient {
-        return builder
+        val b = builder
             .readTimeout(0, TimeUnit.NANOSECONDS)
             .connectTimeout(cfg.connectTimeoutMs, TimeUnit.MILLISECONDS)
             .pingInterval(cfg.pingIntervalMs, TimeUnit.MILLISECONDS)
-            .addInterceptor(LoggingInterceptor(logger))
-            .build()
+
+        if (logger !is DummyLogger) {
+            b.addInterceptor(LoggingInterceptor(logger))
+        }
+        return b.build()
     }
 
 

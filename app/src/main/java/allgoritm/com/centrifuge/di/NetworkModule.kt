@@ -70,9 +70,9 @@ class NetworkModule {
                 val sslSocketFactory = sslContext.socketFactory
 
                 builder
-                    .authenticator { route, response -> response.request().newBuilder().header("Authorization", credential).build() }
+                    .authenticator { _, response -> response.request().newBuilder().header("Authorization", credential).build() }
                     .sslSocketFactory(sslSocketFactory, certs[0] as X509TrustManager)
-                    .hostnameVerifier { hostname, session -> true }
+                    .hostnameVerifier { _, _ -> true }
                     .addInterceptor(logging)
             } catch (e: Exception) {
                 throw RuntimeException("Init error!")
