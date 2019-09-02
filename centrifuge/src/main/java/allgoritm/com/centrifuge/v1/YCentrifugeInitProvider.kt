@@ -26,24 +26,27 @@ internal class YCentrifugeInitProvider : ContentProvider() {
     }
 
     override fun query(
-        uri: Uri, projection: Array<String>, selection: String, selectionArgs: Array<String>, sortOrder: String
+        uri: Uri,
+        projection: Array<out String>?,
+        selection: String?,
+        selectionArgs: Array<out String>?,
+        sortOrder: String?
     ): Cursor? {
         return null
     }
-
     override fun getType(uri: Uri): String? {
         return null
     }
 
-    override fun insert(uri: Uri, values: ContentValues): Uri? {
+    override fun insert(p0: Uri, p1: ContentValues?): Uri? {
         return null
     }
 
-    override fun delete(uri: Uri, selection: String, selectionArgs: Array<String>): Int {
+    override fun delete(p0: Uri, p1: String?, p2: Array<out String>?): Int {
         return 0
     }
 
-    override fun update(uri: Uri, values: ContentValues, selection: String, selectionArgs: Array<String>): Int {
+    override fun update(p0: Uri, p1: ContentValues?, p2: String?, p3: Array<out String>?): Int {
         return 0
     }
 
