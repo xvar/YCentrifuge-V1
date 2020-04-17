@@ -61,7 +61,7 @@ fun check(string: String): String {
     }
 }
 
-fun Response.getResp() = this.body()?.let { JSONObject(it.string()) }
+fun Response.getResp() = this.body?.let { JSONObject(it.string()) }
 
 private val API_URL = "https://$API_HOST/api/v$API_VERSION/"
 private val APP_ID = "android/" + BuildConfig.VERSION_CODE

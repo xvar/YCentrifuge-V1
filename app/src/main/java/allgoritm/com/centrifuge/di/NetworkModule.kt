@@ -8,15 +8,11 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
-import okhttp3.Credentials
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
+import okhttp3.*
 import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
+import javax.net.ssl.*
 
 @Module
 class NetworkModule {
@@ -70,9 +66,13 @@ class NetworkModule {
                 val sslSocketFactory = sslContext.socketFactory
 
                 builder
-                    .authenticator { _, response -> response.request().newBuilder().header("Authorization", credential).build() }
+                    .authenticator(object : Authenticator {
+                        override fun authenticate(route: Route?, response: Response): Request? {
+                            return response.request.newBuilder().header("Authorization", credential).build()
+                        }
+                    })
                     .sslSocketFactory(sslSocketFactory, certs[0] as X509TrustManager)
-                    .hostnameVerifier { _, _ -> true }
+                    .hostnameVerifier(HostnameVerifier { _, _ -> true })
                     .addInterceptor(logging)
             } catch (e: Exception) {
                 throw RuntimeException("Init error!")
